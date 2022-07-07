@@ -1,11 +1,9 @@
-# Change the following to your desired values:
-#   __ACCOUNT_NUMBER__
-#   __ECR_REGION__
-#   __ECR_REPOSITORY_NAME__
-#   __ECS_CONTAINER_NAME__
-
 version: 0.2
-
+env:
+  variables:
+    PROJECT_BUILD_IMAGE_NAME: "242906888793.dkr.ecr.us-east-1.amazonaws.com/minin-frontend2"
+    PROJECT_BUILD_VERSION: "latest"
+    PROJECT_BUILD_IMAGE_ENV: "-master"
 phases:
   install:
     runtime-versions:
@@ -15,23 +13,27 @@ phases:
     - echo Logging in to Amazon ECR...
     - aws --version
     - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
-    - REPOSITORY_URI=242906888793.dkr.ecr.us-east-1.amazonaws.com/minin-frontend2
+    - REPOSITORY_URI=$PROJECT_BUILD_IMAGE_NAME
     - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-    - IMAGE_TAG=$CODEBUILD_SOURCE_VERSION-${COMMIT_HASH:=latest} 
+    - PROJECT_BUILD_IMAGE_VERSION=${COMMIT_HASH:=latest}
+    - IMAGE_TAG=$PROJECT_BUILD_IMAGE_VERSION$PROJECT_BUILD_IMAGE_ENV
+    - IMAGE_LATEST_TAG=$PROJECT_BUILD_VERSION$PROJECT_BUILD_IMAGE_ENV
+    - DOCKER_PATH="."
   build:
     commands:
+      - echo $CODEBUILD_RESOLVED_SOURCE_VERSION
       - echo Build started on `date`
-      - echo Building the Docker image...          
-      - docker build -t $REPOSITORY_URI:latest .
-      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_URI:$IMAGE_LATEST_TAG .
+      - docker tag $REPOSITORY_URI:$IMAGE_LATEST_TAG $REPOSITORY_URI:$IMAGE_TAG
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker images...
-      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_LATEST_TAG
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
-      - printf '[{"name”:"__ECS_CONTAINER_NAME__","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - printf '[{"name":"minin-frontend2","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
   artifacts:
     files:
       - imagedefinitions.json
